@@ -1,4 +1,4 @@
-# Simple Web Serve
+# Simple Web Server
 
 The code creates a simple web server that responds to HTTP requests.
 
