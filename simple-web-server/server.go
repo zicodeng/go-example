@@ -6,12 +6,49 @@ import (
 	"os"
 )
 
+// CORSHandler is a middleware handler that wraps another http.Handler
+// to do some pre- and/or post-processing of the request.
+type CORSHandler struct {
+	Handler http.Handler
+}
+
+// ServeHTTP is a method of CORSHandler.
+// This handler handles CORS requests.
+func (ch *CORSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Use the "Origin", "Access-Control-Request-Method", or "Access-Control-Request-Headers"
+	// to determine if this request should be allowed.
+	// For example: restrict requests from a certain origin.
+	if r.Header.Get("Origin") == "http://evil.com" {
+		http.Error(w, "Sorry, requests from this origin are not allowed", http.StatusUnauthorized)
+		return
+	}
+
+	// Set the various CORS response headers depending on
+	// what we want our server to allow.
+	w.Header().Add("Access-Control-Allow-Origin", "*")
+	// ...more CORS response headers...
+
+	// Preflight request has method "OPTIONS".
+	// If this is not a preflight request,
+	// just call our real handler.
+	if r.Method != "OPTIONS" {
+		ch.Handler.ServeHTTP(w, r)
+	}
+}
+
+// NewCORSHandler wraps another handler into CORSHandler.
+func NewCORSHandler(handlerToWrap http.Handler) *CORSHandler {
+	return &CORSHandler{
+		Handler: handlerToWrap,
+	}
+}
+
 // MethodMux sends the request to the function
 // associated with the HTTP request method.
 type MethodMux struct {
 	// Use a map where the key is a string (method name)
 	// and the value is the associated handler function.
-	HandlerFuncs map[string]func(http.ResponseWriter, *http.Request)
+	HandlerFuncs map[string]func(w http.ResponseWriter, r *http.Request)
 }
 
 // ServeHTTP is a method of MethodMux.
@@ -70,10 +107,13 @@ func main() {
 	// A handler can delegate the request to another handler.
 	mux.Handle("/hello", methodMux)
 
+	// Wraps mux into CORSHandler
+	ch := NewCORSHandler(mux)
+
 	// Start the web server using the mux as router,
 	// and report any errors that may occur.
 	// The ListenAndServe() fucntion will block,
 	// so this program will continue to run until killed.
 	log.Printf("The server is listening at %s", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(http.ListenAndServe(addr, ch))
 }
