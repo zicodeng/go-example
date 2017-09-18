@@ -24,3 +24,5 @@ Test the server by sending a HTTP request.
 ## Reference
 
 https://drstearns.github.io/tutorials/goweb/
+
+https://drstearns.github.io/tutorials/cors/
