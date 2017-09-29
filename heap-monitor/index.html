@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Heap Monitor</title>
+
+    <!-- Rickshaw CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/rickshaw/1.6.3/rickshaw.min.css">
+</head>
+<body>
+    <h1>Heap Monitor</h1>
+    <p>This program monitors bytes of allocated heap objects consumed by this program. You can also click the garbage collect button to manually free the memory.</p>
+    <div id="graph"></div>
+    <div id="legend"></div>
+    <button id="gc-btn">Garbage Collect (Free Memory)</button>
+
+    <!-- jQuery -->
+    <script
+    src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+    crossorigin="anonymous"></script>
+    <!-- D3 -->
+    <script src="https://d3js.org/d3.v3.min.js"></script>
+    <!-- Rickshaw -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/rickshaw/1.6.3/rickshaw.js"></script>
+
+    <!-- Custom JS -->
+    <script type="text/javascript">
+        var graph     = null,
+            x         = 0,
+            graphData = [];
+
+        var $gcBtn = $('#gc-btn');
+        
+        // Update graph every one second.
+        setInterval(update, 1000);
+
+        $gcBtn.click(function() {
+            $.ajax({
+                url: 'http://localhost:3000/memory/gc'
+            });
+        });
+
+        function update() {
+            $.ajax({
+                url: 'http://localhost:3000/memory'
+            })
+            .done(function(data) {
+                // For every new data.Alloc received from ajax, push it to graphData array.
+                graphData.push({ "x": x, "y": data.Alloc });
+
+                x ++;
+
+                if(graph === null) {
+                    graph = new Rickshaw.Graph({
+                        element: document.getElementById('graph'),
+                        width: 1000,
+                        height: 500,
+                        rederer: 'area',
+                        series: [
+                            {
+                                name: 'Allocated Heap Objects',
+                                color: 'steelblue',
+                                data: graphData
+                            }
+
+                        ]
+                    });
+
+                    xAxis = new Rickshaw.Graph.Axis.X({
+                        graph: graph,
+                    });
+            
+                    yAxis = new Rickshaw.Graph.Axis.Y({
+                        graph: graph
+                    });
+
+                    hoverDetail = new Rickshaw.Graph.HoverDetail({
+                        graph: graph
+                    });
+
+                    legend = new Rickshaw.Graph.Legend({
+                        graph: graph,
+                        element: document.querySelector('#legend')
+                    });
+                } else {
+                    graph.series[0].data = graphData;
+                }
+
+                graph.render();
+            })
+            .fail(function(error) {
+                console.log(error);
+            })
+        }
+    </script>
+</body>
+</html>
