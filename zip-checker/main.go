@@ -1,0 +1,47 @@
+package main
+
+import (
+	"fmt"
+	"github.com/zicodeng/go-example/zip-checker/handlers"
+	"github.com/zicodeng/go-example/zip-checker/models"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+)
+
+const zipsPath = "/zips/"
+
+func main() {
+	// Reading ADDR environment variable from OS.
+	addr := os.Getenv("ADDR")
+	if len(addr) == 0 {
+		addr = ":80"
+	}
+
+	zips, err := models.LoadZips("./zips.csv")
+	if err != nil {
+		log.Fatalf("error loading zips: %v", err)
+	}
+
+	log.Printf("Loaded %d zips", len(zips))
+
+	// Index all zips by city.
+	cityIndex := models.ZipIndex{}
+	for _, z := range zips {
+		cityLower := strings.ToLower(z.City)
+		cityIndex[cityLower] = append(cityIndex[cityLower], z)
+	}
+
+	mux := http.NewServeMux()
+
+	cityHandler := &handlers.CityHandler{
+		PathPrefix: zipsPath,
+		Index:      cityIndex,
+	}
+
+	mux.Handle(zipsPath, cityHandler)
+
+	fmt.Printf("Server is listening at http://%s\n", addr)
+	log.Fatal(http.ListenAndServe(addr, mux))
+}
