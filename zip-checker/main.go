@@ -19,7 +19,7 @@ func main() {
 		addr = ":80"
 	}
 
-	zips, err := models.LoadZips("./zips.csv")
+	zips, err := models.LoadZips("/client/zips.csv")
 	if err != nil {
 		log.Fatalf("error loading zips: %v", err)
 	}
@@ -40,6 +40,7 @@ func main() {
 		Index:      cityIndex,
 	}
 
+	mux.Handle("/", http.FileServer(http.Dir("/client")))
 	mux.Handle(zipsPath, cityHandler)
 
 	fmt.Printf("Server is listening at http://%s\n", addr)
