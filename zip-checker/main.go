@@ -16,10 +16,16 @@ func main() {
 	// Reading ADDR environment variable from OS.
 	addr := os.Getenv("ADDR")
 	if len(addr) == 0 {
-		addr = ":80"
+		addr = ":443"
 	}
 
-	zips, err := models.LoadZips("/client/zips.csv")
+	tlskey := os.Getenv("TLSKEY")
+	tlscert := os.Getenv("TLSCERT")
+	if len(tlskey) == 0 || len(tlscert) == 0 {
+		log.Fatal("Please set TLSKEY and TLSCERT")
+	}
+
+	zips, err := models.LoadZips("./client/zips.csv")
 	if err != nil {
 		log.Fatalf("error loading zips: %v", err)
 	}
@@ -43,6 +49,6 @@ func main() {
 	mux.Handle("/", http.FileServer(http.Dir("/client")))
 	mux.Handle(zipsPath, cityHandler)
 
-	fmt.Printf("Server is listening at http://%s\n", addr)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	fmt.Printf("Server is listening at https://%s\n", addr)
+	log.Fatal(http.ListenAndServeTLS(addr, tlscert, tlskey, mux))
 }
