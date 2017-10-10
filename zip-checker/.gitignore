@@ -1,0 +1,4 @@
+*.exe
+
+# Ignore TLS certs.
+tls
