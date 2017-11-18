@@ -19,6 +19,8 @@ type JobResult struct {
 
 func reportResults(result *JobResult, results chan *JobResult) {
 	log.Printf("reporting results for %s", result.URL)
+	// Hand it to results goroutine to crawl all links
+	// found in this result.
 	results <- result
 }
 
@@ -65,32 +67,24 @@ func main() {
 
 	outstandingJobs := 1
 
-	// As long as the results channel receives any data,
-	// report it and crawl all URLs in the received result.
+	// The JobResult we receive might contain many other page links,
+	// we need to crawl those as well.
 	for result := range results {
 		outstandingJobs--
-		log.Println(outstandingJobs)
-		// If we get an error,
-		// report it and go back to the beginning of the loop,
-		// skipping the rest.
 		if result.Error != nil {
 			log.Printf("error crawling %s: %v", result.URL, result.Error)
-			// If our starting URL has error, break the loop.
-			if result.URL == startingURL && result.PL == nil {
-				break
-			}
-			continue
-		}
-		log.Printf("processing %d links found in %s", len(result.PL.Links), result.URL)
-		// Follow all the links found in this page,
-		// and add them to toFetch channel, which will be handled
-		// by different goroutine.
-		for _, URL := range result.PL.Links {
-			if !seen[URL] {
-				seen[URL] = true
-				log.Printf("adding %s to the queue", URL)
-				toFetch <- URL
-				outstandingJobs++
+		} else {
+			log.Printf("processing %d links found in %s", len(result.PL.Links), result.URL)
+			// Follow all the links found in this page,
+			// and add them to toFetch channel, which will be handled
+			// by different goroutine.
+			for _, URL := range result.PL.Links {
+				if !seen[URL] {
+					seen[URL] = true
+					log.Printf("adding %s to the queue", URL)
+					toFetch <- URL
+					outstandingJobs++
+				}
 			}
 		}
 		if outstandingJobs == 0 {
