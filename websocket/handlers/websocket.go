@@ -40,9 +40,10 @@ func (wsh *WebSocketsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	// and represent a different client.
 	// So whenever we receive a new request, and ServeHTTP is called,
 	// we need to add that request as a new client to our Notifier's clients field.
-	// We need to create a new goroutine here because Websocket needs
-	// to constantly read control messages.
-	go wsh.notifier.AddClient(conn)
+	// Note that we don't want to spawn a new goroutine here
+	// because the expectation is that this upgrade request never ends,
+	// as the connection is upgraded into a persistent Websocket connection.
+	wsh.notifier.AddClient(conn)
 }
 
 // Notifier is an object that handles WebSocket notifications.
@@ -96,13 +97,13 @@ func (n *Notifier) AddClient(client *websocket.Conn) {
 		if _, _, err := client.NextReader(); err != nil {
 			client.Close()
 			// Remove it from the list
+			n.mx.Lock()
 			for i, c := range n.clients {
 				if c == client {
-					n.mx.Lock()
 					n.clients = append(n.clients[:i], n.clients[i+1:]...)
-					n.mx.Unlock()
 				}
 			}
+			n.mx.Unlock()
 			break
 		}
 	}
@@ -124,7 +125,6 @@ func (n *Notifier) start() {
 	// them to all WebSocket clients.
 	for msg := range n.eventQ {
 		n.mx.Lock()
-
 		// Loop through all the existing clients,
 		// and send messages to all of them.
 		for i, c := range n.clients {
@@ -132,9 +132,8 @@ func (n *Notifier) start() {
 			// it means this connection is lost,
 			// and we need to remove it from the list.
 			if err := c.WriteMessage(websocket.TextMessage, msg); err != nil {
-				n.mx.Lock()
+				c.Close()
 				n.clients = append(n.clients[:i], n.clients[i+1:]...)
-				n.mx.Unlock()
 				log.Println(err)
 			}
 		}
